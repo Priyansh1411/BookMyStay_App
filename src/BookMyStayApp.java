@@ -2,9 +2,116 @@ import java.util.*;
 
 /**
  * ============================================================
+ * CLASS - InvalidBookingException
+ * ============================================================
+ *
+ * Use Case 9: Error Handling & Validation
+ *
+ * Description:
+ * This custom exception represents
+ * invalid booking scenarios in the system.
+ *
+ * Using a domain-specific exception
+ * makes error handling cleaner and safer.
+ *
+ * @version 9.0
+ */
+class InvalidBookingException extends Exception {
+
+    /**
+     * Creates an exception with
+     * a descriptive error message.
+     *
+     * @param message error description
+     */
+    public InvalidBookingException(String message) {
+        super(message);
+    }
+}
+
+
+/**
+ * ============================================================
+ * CLASS - RoomInventory
+ * ============================================================
+ *
+ * Maintains centralized room availability.
+ */
+class RoomInventory {
+
+    private Map<String, Integer> inventory;
+
+    public RoomInventory() {
+        inventory = new HashMap<>();
+
+        inventory.put("Single", 5);
+        inventory.put("Double", 3);
+        inventory.put("Suite", 2);
+    }
+
+    public boolean isValidRoomType(String roomType) {
+        return inventory.containsKey(roomType);
+    }
+
+    public boolean isAvailable(String roomType) {
+        return inventory.getOrDefault(roomType, 0) > 0;
+    }
+}
+
+
+/**
+ * ============================================================
+ * CLASS - ReservationValidator
+ * ============================================================
+ *
+ * Use Case 9: Error Handling & Validation
+ *
+ * Description:
+ * This class is responsible for validating
+ * booking requests before they are processed.
+ *
+ * All validation rules are centralized
+ * to avoid duplication and inconsistency.
+ *
+ * @version 9.0
+ */
+class ReservationValidator {
+
+    /**
+     * Validates booking input provided by the user.
+     *
+     * @param guestName name of the guest
+     * @param roomType requested room type
+     * @param inventory centralized room inventory
+     * @throws InvalidBookingException if validation fails
+     */
+    public void validate(
+            String guestName,
+            String roomType,
+            RoomInventory inventory
+    ) throws InvalidBookingException {
+
+        if (guestName == null || guestName.trim().isEmpty()) {
+            throw new InvalidBookingException("Guest name cannot be empty.");
+        }
+
+        if (!inventory.isValidRoomType(roomType)) {
+            throw new InvalidBookingException("Invalid room type selected.");
+        }
+
+        if (!inventory.isAvailable(roomType)) {
+            throw new InvalidBookingException("Selected room type is not available.");
+        }
+    }
+}
+
+
+/**
+ * ============================================================
  * CLASS - Reservation
  * ============================================================
- * Represents a confirmed reservation.
+ *
+ * Represents a booking request.
  */
 class Reservation {
 
@@ -28,82 +135,25 @@ class Reservation {
 
 /**
  * ============================================================
- * CLASS - BookingHistory
+ * CLASS - BookingRequestQueue
  * ============================================================
  *
- * Use Case 8: Booking History & Reporting
- *
- * Description:
- * This class maintains a record of confirmed reservations.
- * It provides ordered storage for historical and reporting
- * purposes.
- *
- * @version 8.0
+ * Stores booking requests in FIFO order.
  */
-class BookingHistory {
+class BookingRequestQueue {
 
-    /**
-     * List that stores confirmed reservations.
-     */
-    private List<Reservation> confirmedReservations;
+    private Queue<Reservation> queue;
 
-    /**
-     * Initializes an empty booking history.
-     */
-    public BookingHistory() {
-        confirmedReservations = new ArrayList<>();
+    public BookingRequestQueue() {
+        queue = new LinkedList<>();
     }
 
-    /**
-     * Adds a confirmed reservation to booking history.
-     *
-     * @param reservation confirmed booking
-     */
-    public void addReservation(Reservation reservation) {
-        confirmedReservations.add(reservation);
+    public void addRequest(Reservation reservation) {
+        queue.add(reservation);
     }
 
-    /**
-     * Returns all confirmed reservations.
-     *
-     * @return list of reservations
-     */
-    public List<Reservation> getConfirmedReservations() {
-        return confirmedReservations;
-    }
-}
-
-
-/**
- * ============================================================
- * CLASS - BookingReportService
- * ============================================================
- *
- * Use Case 8: Booking History & Reporting
- *
- * Description:
- * This class generates reports from booking history data.
- * Reporting logic is separated from data storage.
- *
- * @version 8.0
- */
-class BookingReportService {
-
-    /**
-     * Displays a summary report of all confirmed bookings.
-     *
-     * @param history booking history
-     */
-    public void generateReport(BookingHistory history) {
-
-        System.out.println("\nBooking History Report");
-
-        for (Reservation reservation : history.getConfirmedReservations()) {
-            System.out.println(
-                    "Guest: " + reservation.getGuestName()
-                            + ", Room Type: " + reservation.getRoomType()
-            );
-        }
+    public Reservation getNextRequest() {
+        return queue.poll();
     }
 }
 
@@ -111,16 +161,42 @@ class BookingReportService {
 
 public class BookMyStayApp {
     public static void main (String[] args) {
-        BookingHistory history = new BookingHistory();
+        // Display application header
+        System.out.println("Booking Validation");
 
-        history.addReservation(new Reservation("Abhi", "Single"));
-        history.addReservation(new Reservation("Subha", "Double"));
-        history.addReservation(new Reservation("Vannathi", "Suite"));
+        Scanner scanner = new Scanner(System.in);
 
-        BookingReportService reportService = new BookingReportService();
+        // Initialize required components
+        RoomInventory inventory = new RoomInventory();
+        ReservationValidator validator = new ReservationValidator();
+        BookingRequestQueue bookingQueue = new BookingRequestQueue();
 
-        System.out.println("Booking History and Reporting");
+        try {
 
-        reportService.generateReport(history);
+            // Accept user input
+            System.out.print("Enter guest name: ");
+            String guestName = scanner.nextLine();
+
+            System.out.print("Enter room type (Single/Double/Suite): ");
+            String roomType = scanner.nextLine();
+
+            // Validate booking
+            validator.validate(guestName, roomType, inventory);
+
+            // Add booking request if valid
+            Reservation reservation = new Reservation(guestName, roomType);
+            bookingQueue.addRequest(reservation);
+
+            System.out.println("Booking request accepted.");
+
+        }
+        catch (InvalidBookingException e) {
+
+            // Handle domain-specific validation errors
+            System.out.println("Booking failed: " + e.getMessage());
+        }
+        finally {
+            scanner.close();
+        }
     }
 }
